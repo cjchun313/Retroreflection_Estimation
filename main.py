@@ -178,10 +178,10 @@ def main(args):
             modelpath += 'alexnet.pth'
         elif args.model == 'mobilenet':
             modelpath += 'mobilenet.pth'
-        elif args.model == 'googlenet':
-            modelpath += 'googlenet.pth'
+        elif args.model == 'shufflenet':
+            modelpath += 'shufflenet.pth'
 
-        model = cnn_model()
+        model = cnn_model(args.model)
         if torch.cuda.device_count() > 1:
             print('multi gpu used!')
             model = nn.DataParallel(model)
@@ -228,8 +228,8 @@ def main(args):
             modelpath += 'alexnet.pth'
         elif args.model == 'mobilenet':
             modelpath += 'mobilenet.pth'
-        elif args.model == 'googlenet':
-            modelpath += 'googlenet.pth'
+        elif args.model == 'shufflenet':
+            modelpath += 'shufflenet.pth'
         load_model(modelpath, model)
 
         test_loss, test_acc = evaluate(model, val_dataloader)
@@ -309,12 +309,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch_size',
         help='the number of samples in mini-batch',
-        default=4,
+        default=240,
         type=int)
     parser.add_argument(
         '--epoch',
         help='the number of training iterations',
-        default=200,
+        default=50,
         type=int)
     parser.add_argument(
         '--lr',
@@ -329,17 +329,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--mode',
         help='train, or evaluate',
-        default='evaluate',
+        default='train',
         type=str)
     parser.add_argument(
         '--model',
-        help='resnet18, vgg16, alexnet, mobilenet, or googlenet',
+        help='resnet18, vgg16, alexnet, mobilenet, or shufflenet',
         default='resnet18',
         type=str)
     parser.add_argument(
         '--type',
         help='classification, or segmentation',
-        default='segmentation',
+        default='classification',
         type=str)
 
     args = parser.parse_args()
