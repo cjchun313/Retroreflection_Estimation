@@ -218,7 +218,12 @@ def main(args):
         val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
         print(val_dataloader)
 
-        model = cnn_model().to(DEVICE)
+        model = cnn_model(args.model)
+        if torch.cuda.device_count() > 1:
+            print('multi gpu used!')
+            model = nn.DataParallel(model)
+        model = model.to(DEVICE)
+
         modelpath = CLASSI_MODEL_PATH
         if args.model == 'resnet18':
             modelpath += 'resnet18.pth'
