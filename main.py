@@ -1,4 +1,5 @@
 import argparse
+import tqdm
 import numpy as np
 
 import torch
@@ -12,12 +13,16 @@ from evaluation import compute_iou
 from models.classification_modern_model import cnn_model
 from models.segmentation_unet import UNet
 from data_loader import ImagevDatasetForClassi, ImagevDatasetForSegment
+from utils import generate_img_from_mask, write_image
 
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device('cuda' if USE_CUDA else 'cpu')
 
 CLASSI_MODEL_PATH = '../pth/classi/classi_'
 SEGMENT_MODEL_PATH = '../pth/segment/segment_'
+
+SEGMENT_TRUE_PATH = '../output/true/true_'
+SEGMENT_PRED_PATH = '../output/pred/pred_'
 
 def train(model, train_loader, optimizer):
     model.train()
@@ -87,7 +92,7 @@ def evaluate(model, test_loader):
     correct = 0
 
     criterion1 = nn.CrossEntropyLoss().to(DEVICE)
-    criterion2 = nn.MSELoss().to(DEVICE)
+    criterion2 = nn.L1Loss().to(DEVICE)
 
     with torch.no_grad():
         for samples in test_loader:
@@ -100,7 +105,8 @@ def evaluate(model, test_loader):
             output = model(data)
             loss1 = criterion1(output[:, 0:2], target1)
             loss2 = criterion2(output[:, 2], target2)
-            loss = loss1 + loss2
+            #loss = loss1 + loss2
+            loss = loss2
             test_loss += loss.item()
 
             classi_output = output[:, 0:2]
@@ -135,6 +141,38 @@ def evaluate2(model, test_loader):
     total_ious = np.mean(np.array(total_ious), axis=0)
 
     return test_loss, total_ious
+
+def predict2(model, test_loader):
+    model.eval()
+
+    cnt = 0
+    with torch.no_grad():
+        for samples in tqdm.tqdm(test_loader):
+            data, target = samples
+
+            data = data.to(DEVICE)
+            target = target.to(DEVICE)
+            output = model(data)
+
+            y_true = target
+            y_pred = output.max(1, keepdim=False)[1]
+
+            y_true = y_true.cpu().detach().numpy()
+            y_pred = y_pred.cpu().detach().numpy()
+
+            for i in range(np.size(y_true, 0)):
+                img_true = generate_img_from_mask(y_true[i], np.size(y_true, 1), np.size(y_true, 2))
+                img_pred = generate_img_from_mask(y_pred[i], np.size(y_pred, 1), np.size(y_pred, 2))
+
+                filepath_true = SEGMENT_TRUE_PATH + str(cnt).zfill(4) + '.png'
+                filepath_pred = SEGMENT_PRED_PATH + str(cnt).zfill(4) + '.png'
+
+                write_image(filepath_true, img_true)
+                write_image(filepath_pred, img_pred)
+
+                cnt += 1
+
+        print('prediction done!')
 
 
 def save_model(modelpath, model, optimizer, scheduler):
@@ -215,7 +253,7 @@ def main(args):
     # evaluate
     elif args.mode == 'evaluate':
         val_dataset = ImagevDatasetForClassi(mode='val')
-        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
+        val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0)
         print(val_dataloader)
 
         model = cnn_model(args.model)
@@ -239,6 +277,9 @@ def main(args):
 
         test_loss, test_acc = evaluate(model, val_dataloader)
         print('Test Loss:{:.6f}\tTest Acc:{:2.4f}'.format(test_loss, test_acc))
+    # predict
+    elif args.mode == 'predict':
+        print('there is no prediction module in classification.')
 
 def main2(args):
     # train
@@ -306,6 +347,23 @@ def main2(args):
         val_loss, val_ious = evaluate2(model, val_dataloader)
         val_mean_iou = np.mean(val_ious)
         print('Val Loss:{:.6f}\tVal Mean IoU:{:2.4f}\tVal IoU1:{:2.4f}\tVal IoU2:{:2.4f}\tVal IoU3:{:2.4f}'.format(val_loss, val_mean_iou, val_ious[0], val_ious[1], val_ious[2]))
+    # predict
+    elif args.mode == 'predict':
+        val_dataset = ImagevDatasetForSegment(mode='val')
+        val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
+        print(val_dataloader)
+
+        model = UNet()
+        if torch.cuda.device_count() > 1:
+            print('multi gpu used!')
+            model = nn.DataParallel(model)
+        model = model.to(DEVICE)
+
+        modelpath = SEGMENT_MODEL_PATH
+        modelpath += 'unet.pth'
+        load_model(modelpath, model)
+
+        predict2(model, val_dataloader)
 
 
 
@@ -333,8 +391,8 @@ if __name__ == '__main__':
         type=bool)
     parser.add_argument(
         '--mode',
-        help='train, or evaluate',
-        default='train',
+        help='train, evaluate, or predict',
+        default='evaluate',
         type=str)
     parser.add_argument(
         '--model',
