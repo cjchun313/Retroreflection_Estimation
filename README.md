@@ -1,6 +1,11 @@
-# Classification and Segmentation of LongitudinalRoad Marking using Convolutional Neural Networksfor Dynamic Retroreflection Estimation
+# Classification and Segmentation of Longitudinal Road Marking using Convolutional Neural Networks for Dynamic Retroreflection Estimation
 
-Chanjun Chun1, Taehee Lee1, Sungil Kwon2 and Seung-Ki Ryu1,*,
+Chanjun Chun, Taehee Lee, and Seung-Ki Ryu*
+Future Infrastructure Research Center, Korea Institute of Civil Engineering and Building Technology (KICT)
+{chanjunchun, thlee420, skryu}@kict.re.kr
 
-1Future Infrastructure Research Center, Korea Institute of Civil Engineering and Building Technology (KICT)
-2HI-LANDKOREA Co., Ltd.
+Sungil Kwon
+HI-LANDKOREA Co., Ltd.
+hilandkorea@naver.com
+
+
