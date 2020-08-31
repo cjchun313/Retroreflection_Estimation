@@ -23,5 +23,9 @@ def calculate_luminance_ratio(img, mask, height, width):
     rp_mean = np.mean(np.multiply(img, reference_plate).reshape(-1))
     rm_mean = np.mean(np.multiply(img, road_marking).reshape(-1))
 
-    return (rm_mean / rp_mean)
+    ratio = rm_mean / (rp_mean + 0.01)
+    if ratio > 2.0:
+        ratio = 2.0;
+
+    return ratio
 
