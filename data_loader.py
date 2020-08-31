@@ -103,6 +103,43 @@ class ImagevDatasetForSegment(Dataset):
         return sample
 
 
+class ImagevDatasetForRetroEsti(Dataset):
+    def __init__(self, mode='val2', transform=None, width=640, height=480):
+        self.mode = mode
+        self.transform = transform
+        self.width = width
+        self.height = height
+
+        path = '../db/'
+        path += 'val2/'
+
+        # iamge files
+        self.imgfiles = sorted(glob.glob(path + 'pixels/*.csv'))
+
+        self.x_data, self.y_data = [], []
+        for imgfile in tqdm.tqdm(self.imgfiles):
+            jpgfile = imgfile.replace('pixels', 'original')
+            jpgfile = jpgfile.replace('csv', 'jpg')
+
+            df_org = pd.read_csv(imgfile)
+            self.x_data.append(df_org.values[:,1:641])
+            img = np.array(cv2.imread(jpgfile))
+            self.y_data.append(img)
+
+        self.x_data = np.array(self.x_data)
+        self.y_data = np.array(self.y_data)
+        print(self.x_data.shape, self.y_data.shape)
+
+    def __len__(self):
+        return len(self.x_data)
+
+    def __getitem__(self, idx):
+        sample = torch.FloatTensor(self.x_data[idx]).view(1, self.height, self.width), torch.LongTensor(self.y_data[idx]).view(3, self.height, self.width)
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
 
 if __name__ == "__main__":
     '''
@@ -115,8 +152,8 @@ if __name__ == "__main__":
         break
     '''
 
-    train_dataset = ImagevDatasetForSegment(mode='val')
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=False, num_workers=0)
+    train_dataset = ImagevDatasetForRetroEsti(mode='val2')
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=0)
     for batch_idx, samples in enumerate(train_loader):
         data, target = samples
         print(data.shape, target.shape)

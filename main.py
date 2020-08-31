@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from evaluation import compute_iou
 from models.classification_modern_model import cnn_model
 from models.segmentation_unet import UNet
-from data_loader import ImagevDatasetForClassi, ImagevDatasetForSegment
-from utils import generate_img_from_mask, write_image
+from data_loader import ImagevDatasetForClassi, ImagevDatasetForSegment, ImagevDatasetForRetroEsti
+from utils import generate_img_from_mask, write_image, calculate_luminance_ratio
 
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device('cuda' if USE_CUDA else 'cpu')
@@ -23,6 +23,8 @@ SEGMENT_MODEL_PATH = '../pth/segment/segment_'
 
 SEGMENT_TRUE_PATH = '../output/true/true_'
 SEGMENT_PRED_PATH = '../output/pred/pred_'
+
+BOTH_PRED_PATH = '../output/both/output_'
 
 def train(model, train_loader, optimizer):
     model.train()
@@ -173,6 +175,54 @@ def predict2(model, test_loader):
                 cnt += 1
 
         print('prediction done!')
+
+
+def predict3(classi_model, segment_model, test_loader):
+    classi_model.eval()
+    segment_model.eval()
+
+    cnt = 0
+    res = []
+    with torch.no_grad():
+        #for samples in tqdm.tqdm(test_loader):
+        for samples in test_loader:
+            csv, img = samples
+
+            csv = csv.to(DEVICE)
+            img = img.to(DEVICE)
+
+            output = classi_model(csv)
+
+            classi_output = output[:, 0:2]
+            prediction = classi_output.max(1, keepdim=False)[1]
+            prediction = prediction.cpu().detach().numpy()
+            h = int(480 * np.squeeze(output[:, 2].cpu().detach().numpy()))
+
+            if prediction == 1:
+                segment_output = segment_model(csv[:, :, h:h + 192, :])
+                segment_output = segment_output.max(1, keepdim=False)[1]
+                segment_output = segment_output.cpu().detach().numpy()
+
+                for i in range(np.size(segment_output, 0)):
+                    img_pred = generate_img_from_mask(segment_output[i], np.size(segment_output, 1), np.size(segment_output, 2))
+                    filepath_pred = BOTH_PRED_PATH + str(cnt).zfill(4) + '.png'
+                    write_image(filepath_pred, img_pred)
+
+                    ratio = calculate_luminance_ratio(csv[:, :, h:h + 192, :].cpu().detach().numpy(), segment_output[i], np.size(segment_output, 1), np.size(segment_output, 2))
+                    res.append(ratio)
+                    print(ratio)
+
+                    cnt += 1
+            else:
+                res.append(0)
+                #print(cnt, 'negative!')
+
+            cnt += 1
+
+    res = np.array(res)
+    np.savetxt('../output/output.txt', res, fmt='%1.6f')  # use exponential notation
+    print('prediction done!')
+
 
 
 def save_model(modelpath, model, optimizer, scheduler):
@@ -365,6 +415,46 @@ def main2(args):
 
         predict2(model, val_dataloader)
 
+# only for prediction using both classification and segmentation
+def main3(args):
+    # predict
+    if args.mode == 'predict':
+        val_dataset = ImagevDatasetForRetroEsti(mode='val2')
+        val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0)
+        print(val_dataloader)
+
+        classi_model = cnn_model(args.model)
+        if torch.cuda.device_count() > 1:
+            print('multi gpu used!')
+            classi_model = nn.DataParallel(classi_model)
+        classi_model = classi_model.to(DEVICE)
+
+        modelpath = CLASSI_MODEL_PATH
+        if args.model == 'resnet18':
+            modelpath += 'resnet18.pth'
+        elif args.model == 'vgg16':
+            modelpath += 'vgg16.pth'
+        elif args.model == 'alexnet':
+            modelpath += 'alexnet.pth'
+        elif args.model == 'mobilenet':
+            modelpath += 'mobilenet.pth'
+        elif args.model == 'shufflenet':
+            modelpath += 'shufflenet.pth'
+        load_model(modelpath, classi_model)
+
+        segment_model = UNet()
+        if torch.cuda.device_count() > 1:
+            print('multi gpu used!')
+            segment_model = nn.DataParallel(segment_model)
+        segment_model = segment_model.to(DEVICE)
+
+        modelpath = SEGMENT_MODEL_PATH
+        modelpath += 'unet.pth'
+        load_model(modelpath, segment_model)
+
+        predict3(classi_model, segment_model, val_dataloader)
+
+
 
 
 if __name__ == '__main__':
@@ -372,7 +462,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch_size',
         help='the number of samples in mini-batch',
-        default=240,
+        default=128,
         type=int)
     parser.add_argument(
         '--epoch',
@@ -401,7 +491,7 @@ if __name__ == '__main__':
         type=str)
     parser.add_argument(
         '--type',
-        help='classification, or segmentation',
+        help='classification, segmentation, or both',
         default='classification',
         type=str)
 
@@ -412,3 +502,5 @@ if __name__ == '__main__':
         main(args)
     elif args.type == 'segmentation':
         main2(args)
+    elif args.type == 'both':
+        main3(args)
