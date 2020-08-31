@@ -184,8 +184,7 @@ def predict3(classi_model, segment_model, test_loader):
     cnt = 0
     res = []
     with torch.no_grad():
-        #for samples in tqdm.tqdm(test_loader):
-        for samples in test_loader:
+        for samples in tqdm.tqdm(test_loader):
             csv, img = samples
 
             csv = csv.to(DEVICE)
@@ -197,9 +196,10 @@ def predict3(classi_model, segment_model, test_loader):
             prediction = classi_output.max(1, keepdim=False)[1]
             prediction = prediction.cpu().detach().numpy()
             h = int(480 * np.squeeze(output[:, 2].cpu().detach().numpy()))
+            crop_csv = csv[:, :, h:h + 192, :]
 
             if prediction == 1:
-                segment_output = segment_model(csv[:, :, h:h + 192, :])
+                segment_output = segment_model(crop_csv)
                 segment_output = segment_output.max(1, keepdim=False)[1]
                 segment_output = segment_output.cpu().detach().numpy()
 
@@ -208,16 +208,14 @@ def predict3(classi_model, segment_model, test_loader):
                     filepath_pred = BOTH_PRED_PATH + str(cnt).zfill(4) + '.png'
                     write_image(filepath_pred, img_pred)
 
-                    ratio = calculate_luminance_ratio(csv[:, :, h:h + 192, :].cpu().detach().numpy(), segment_output[i], np.size(segment_output, 1), np.size(segment_output, 2))
+                    ratio = calculate_luminance_ratio(crop_csv.cpu().detach().numpy(), segment_output[i], np.size(segment_output, 1), np.size(segment_output, 2))
                     res.append(ratio)
-                    print(ratio)
 
                     cnt += 1
             else:
                 res.append(0)
-                #print(cnt, 'negative!')
 
-            cnt += 1
+                cnt += 1
 
     res = np.array(res)
     np.savetxt('../output/output.txt', res, fmt='%1.6f')  # use exponential notation
