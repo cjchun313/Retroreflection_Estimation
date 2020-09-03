@@ -1,12 +1,12 @@
 ## Classification and Segmentation of Longitudinal Road Marking using Convolutional Neural Networks for Dynamic Retroreflection Estimation
 
 ### Requirements
-glob2==0.7
-numpy==1.16.5
-pandas==1.0.4
-torch==1.2.0
-torchsummary==1.5.1
-torchvision==0.4.0a0+6b959ee
+glob2==0.7    
+numpy==1.16.5      
+pandas==1.0.4      
+torch==1.2.0      
+torchsummary==1.5.1      
+torchvision==0.4.0a0+6b959ee      
 tqdm==4.32.1
 
 ### Abstract
