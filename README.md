@@ -13,4 +13,4 @@ tqdm==4.32.1
 The dynamic retroreflection estimation method of the longitudinal road marking from the luminance camera using convolutional neural networks (CNNs). From the image captured by the luminance camera, a classification and regression CNN model is proposed to find out whether the longitudinal road marking was accurately acquired. If the longitudinal road marking is present in the captured image, a segmentation model that appropriately presents the longitudinal road marking and the reference plate is also proposed.
 
 ### Overall Structure
-![fig2_1](https://user-images.githubusercontent.com/23445222/92067885-615a8180-ede0-11ea-8b43-28076b1c26da.png =400x)
+![fig2_1](https://user-images.githubusercontent.com/23445222/92067885-615a8180-ede0-11ea-8b43-28076b1c26da.png){ width: 200px; }
